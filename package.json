@@ -1,6 +1,6 @@
 {
   "name": "node-thermal-printer-js",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "ESC/POS printer helper for PSF588 Bluetooth and COM printing.",
   "main": "app.js",
   "exports": {
