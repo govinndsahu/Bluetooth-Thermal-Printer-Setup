@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -57,7 +58,7 @@ const runPythonProcess = ({ cmd, cmdArgs, scriptArgs }) =>
   });
 
 const printViaComPort = async (data, options = {}) => {
-  const portPath = options.portPath || process.env.PRINTER_COM_PORT || "COM5";
+  const portPath = options.portPath || process.env.PRINTER_COM_PORT;
   const baudRate = options.baudRate || 9600;
 
   // Dynamically import `serialport` only when COM transport is requested.
@@ -110,7 +111,7 @@ const printViaBleBridge = (data, options = {}) => {
     "--data-b64",
     payload,
     "--name",
-    options.bleName || process.env.PRINTER_BLE_NAME || "PSF588",
+    options.bleName || process.env.PRINTER_BLE_NAME,
   ];
 
   if (options.bleAddress || process.env.PRINTER_BLE_ADDRESS) {
@@ -187,7 +188,7 @@ const printViaBleBridge = (data, options = {}) => {
 // Preferable on Windows: pair the PSF588 printer in OS Bluetooth settings
 // and note the outgoing COM port (e.g. COM5). Then call `printToPSF588(data, { portPath: 'COM5' })`.
 export const printData = (data, options = {}) => {
-  const transport = options.transport || process.env.PRINTER_TRANSPORT || "ble";
+  const transport = options.transport || process.env.PRINTER_TRANSPORT;
 
   if (transport === "ble") {
     return printViaBleBridge(data, options);
