@@ -2,6 +2,12 @@
 
 Public npm package for sending ESC/POS print jobs to a PSF588 printer over BLE or classic Bluetooth COM port.
 
+## Requirements (Read First)
+
+- Node.js is required for all usage.
+- BLE mode requires Python 3.11+ with `bleak` installed (this package uses a Python BLE bridge).
+- COM mode works with Node.js only, but your printer must already be paired as a COM port in your OS.
+
 ## Install
 
 ```bash
