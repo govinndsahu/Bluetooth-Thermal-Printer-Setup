@@ -34,11 +34,25 @@ const runPythonProcess = ({ cmd, cmdArgs, scriptArgs }) =>
 
     child.on("close", (code) => {
       if (code === 0) {
-        resolve({ ok: true, stdout: stdout.trim(), stderr: stderr.trim(), code, cmd, cmdArgs });
+        resolve({
+          ok: true,
+          stdout: stdout.trim(),
+          stderr: stderr.trim(),
+          code,
+          cmd,
+          cmdArgs,
+        });
         return;
       }
 
-      resolve({ ok: false, stdout: stdout.trim(), stderr: stderr.trim(), code, cmd, cmdArgs });
+      resolve({
+        ok: false,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        code,
+        cmd,
+        cmdArgs,
+      });
     });
   });
 
@@ -51,16 +65,24 @@ const printViaComPort = async (order, options = {}) => {
   try {
     SerialPortModule = await import("serialport");
   } catch (e) {
-    return Promise.reject(new Error(`serialport module not available: ${e.message}`));
+    return Promise.reject(
+      new Error(`serialport module not available: ${e.message}`),
+    );
   }
 
-  const SerialPortCtor = SerialPortModule.default || SerialPortModule.SerialPort || SerialPortModule;
+  const SerialPortCtor =
+    SerialPortModule.default || SerialPortModule.SerialPort || SerialPortModule;
 
-  const port = new SerialPortCtor({ path: portPath, baudRate, autoOpen: false });
+  const port = new SerialPortCtor({
+    path: portPath,
+    baudRate,
+    autoOpen: false,
+  });
 
   return new Promise((resolve, reject) => {
     port.open((err) => {
-      if (err) return reject(new Error(`Failed to open ${portPath}: ${err.message}`));
+      if (err)
+        return reject(new Error(`Failed to open ${portPath}: ${err.message}`));
 
       const payload = getEscPosPayload(order);
 
@@ -92,19 +114,31 @@ const printViaBleBridge = (order, options = {}) => {
   ];
 
   if (options.bleAddress || process.env.PRINTER_BLE_ADDRESS) {
-    args.push("--address", options.bleAddress || process.env.PRINTER_BLE_ADDRESS);
+    args.push(
+      "--address",
+      options.bleAddress || process.env.PRINTER_BLE_ADDRESS,
+    );
   }
 
   if (options.charUUID || process.env.PRINTER_BLE_CHAR_UUID) {
-    args.push("--char-uuid", options.charUUID || process.env.PRINTER_BLE_CHAR_UUID);
+    args.push(
+      "--char-uuid",
+      options.charUUID || process.env.PRINTER_BLE_CHAR_UUID,
+    );
   }
 
   if (options.connectTimeout || process.env.PRINTER_BLE_CONNECT_TIMEOUT) {
-    args.push("--connect-timeout", String(options.connectTimeout || process.env.PRINTER_BLE_CONNECT_TIMEOUT));
+    args.push(
+      "--connect-timeout",
+      String(options.connectTimeout || process.env.PRINTER_BLE_CONNECT_TIMEOUT),
+    );
   }
 
   if (options.scanTimeout || process.env.PRINTER_BLE_SCAN_TIMEOUT) {
-    args.push("--scan-timeout", String(options.scanTimeout || process.env.PRINTER_BLE_SCAN_TIMEOUT));
+    args.push(
+      "--scan-timeout",
+      String(options.scanTimeout || process.env.PRINTER_BLE_SCAN_TIMEOUT),
+    );
   }
 
   if (options.pair || process.env.PRINTER_BLE_PAIR === "1") {
@@ -125,17 +159,27 @@ const printViaBleBridge = (order, options = {}) => {
 
     for (const candidate of candidates) {
       // Try multiple launchers because Windows py default can point to a missing runtime.
-      const result = await runPythonProcess({ cmd: candidate.cmd, cmdArgs: candidate.cmdArgs, scriptArgs: args });
+      const result = await runPythonProcess({
+        cmd: candidate.cmd,
+        cmdArgs: candidate.cmdArgs,
+        scriptArgs: args,
+      });
 
       if (result.ok) {
         resolve(result.stdout);
         return;
       }
 
-      failures.push(`${result.cmd} ${result.cmdArgs.join(" ")} -> code ${result.code}: ${result.stderr || result.stdout || "no output"}`);
+      failures.push(
+        `${result.cmd} ${result.cmdArgs.join(" ")} -> code ${result.code}: ${result.stderr || result.stdout || "no output"}`,
+      );
     }
 
-    reject(new Error(`BLE bridge failed for all Python launchers. ${failures.join(" | ")}`));
+    reject(
+      new Error(
+        `BLE bridge failed for all Python launchers. ${failures.join(" | ")}`,
+      ),
+    );
   });
 };
 
