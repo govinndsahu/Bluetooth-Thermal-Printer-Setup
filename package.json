@@ -1,16 +1,35 @@
 {
-  "name": "printer",
+  "name": "node-thermal-printer-js",
   "version": "1.0.0",
-  "description": "",
+  "description": "ESC/POS printer helper for PSF588 Bluetooth and COM printing.",
   "main": "app.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node --watch app.js"
+  "exports": {
+    ".": "./app.js"
   },
-  "keywords": [],
+  "files": [
+    "app.js",
+    "ble_print.py",
+    "ble_scan.py",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node test-api.js",
+    "dev": "node --watch app.js",
+    "pack:dry": "npm pack --dry-run"
+  },
+  "keywords": [
+    "printer",
+    "escpos",
+    "bluetooth",
+    "serialport",
+    "psf588"
+  ],
   "author": "",
   "license": "ISC",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "escpos": "^3.0.0-alpha.6",
     "escpos-serialport": "^3.0.0-alpha.4",

@@ -1,8 +1,10 @@
-import { printToPSF588 } from "./app.js";
+import { printData } from "./app.js";
 
-console.log("Testing printToPSF588 API...");
+console.log("Testing printData API...");
 
-printToPSF588({ id: "API-TEST-001" })
+printData(
+  "Hello, Printer! \nThis is a test print from the API.\n\nThank you!\n\n\n\n\n",
+)
   .then(() => {
     console.log("✓ Print API test passed!");
     process.exit(0);

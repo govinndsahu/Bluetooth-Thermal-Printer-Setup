@@ -1,10 +1,28 @@
-# Printer BLE/COM Backend
+# node-thermal-printer-js
+
+Public npm package for sending ESC/POS print jobs to a PSF588 printer over BLE or classic Bluetooth COM port.
+
+## Install
+
+```bash
+npm install node-thermal-printer-js
+```
+
+## Import
+
+```js
+import { printData } from "node-thermal-printer-js";
+
+await printData("Hello from npm!");
+```
+
+## Local Development
 
 This project can print ESC/POS data to PSF588 using either:
 - BLE via Python bridge (`ble_print.py` + `bleak`)
 - Classic Bluetooth Serial (COM port) via `serialport`
 
-## Install
+## Install Dependencies
 
 ```bash
 npm install
@@ -66,6 +84,15 @@ node test-print.js com ORDER123 COM5 9600
 - `PRINTER_BLE_SCAN_TIMEOUT=10` (seconds)
 - `PRINTER_BLE_PAIR=1` (set to enable OS pairing before connect)
 - `PRINTER_PYTHON_CMD=py` (Python launcher)
+
+## Publish Checklist
+
+Before publishing, make sure the package name is unique on npm and then run:
+
+```bash
+npm pack --dry-run
+npm publish --access public
+```
 
 ## PSF588 Printer Info
 

@@ -4,6 +4,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+thermal-printer-js-1.0.0.tgz
+
 # Environment
 .env
 .env.*

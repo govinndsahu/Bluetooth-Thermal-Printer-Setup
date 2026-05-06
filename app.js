@@ -2,10 +2,10 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const getEscPosPayload = (order) =>
+const getEscPosPayload = (data) =>
   Buffer.concat([
     Buffer.from([0x1b, 0x40, 0x0a]),
-    Buffer.from(`NEW ORDER\n${order.id}\n`),
+    Buffer.from(`${data}\n\n\n\n\n`, "utf-8"),
   ]);
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -186,7 +186,7 @@ const printViaBleBridge = (order, options = {}) => {
 // Print to a paired Bluetooth printer exposed as a Windows COM (RFCOMM) port.
 // Preferable on Windows: pair the PSF588 printer in OS Bluetooth settings
 // and note the outgoing COM port (e.g. COM5). Then call `printToPSF588(order, { portPath: 'COM5' })`.
-export const printToPSF588 = (order, options = {}) => {
+export const printData = (order, options = {}) => {
   const transport = options.transport || process.env.PRINTER_TRANSPORT || "ble";
 
   if (transport === "ble") {
