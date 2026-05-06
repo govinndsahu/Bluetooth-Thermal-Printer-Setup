@@ -56,7 +56,7 @@ const runPythonProcess = ({ cmd, cmdArgs, scriptArgs }) =>
     });
   });
 
-const printViaComPort = async (order, options = {}) => {
+const printViaComPort = async (data, options = {}) => {
   const portPath = options.portPath || process.env.PRINTER_COM_PORT || "COM5";
   const baudRate = options.baudRate || 9600;
 
@@ -84,7 +84,7 @@ const printViaComPort = async (order, options = {}) => {
       if (err)
         return reject(new Error(`Failed to open ${portPath}: ${err.message}`));
 
-      const payload = getEscPosPayload(order);
+      const payload = getEscPosPayload(data);
 
       port.write(payload, (writeErr) => {
         if (writeErr) {
@@ -103,8 +103,8 @@ const printViaComPort = async (order, options = {}) => {
   });
 };
 
-const printViaBleBridge = (order, options = {}) => {
-  const payload = getEscPosPayload(order).toString("base64");
+const printViaBleBridge = (data, options = {}) => {
+  const payload = getEscPosPayload(data).toString("base64");
   const args = [
     bleScriptPath,
     "--data-b64",
@@ -185,13 +185,13 @@ const printViaBleBridge = (order, options = {}) => {
 
 // Print to a paired Bluetooth printer exposed as a Windows COM (RFCOMM) port.
 // Preferable on Windows: pair the PSF588 printer in OS Bluetooth settings
-// and note the outgoing COM port (e.g. COM5). Then call `printToPSF588(order, { portPath: 'COM5' })`.
-export const printData = (order, options = {}) => {
+// and note the outgoing COM port (e.g. COM5). Then call `printToPSF588(data, { portPath: 'COM5' })`.
+export const printData = (data, options = {}) => {
   const transport = options.transport || process.env.PRINTER_TRANSPORT || "ble";
 
   if (transport === "ble") {
-    return printViaBleBridge(order, options);
+    return printViaBleBridge(data, options);
   }
 
-  return printViaComPort(order, options);
+  return printViaComPort(data, options);
 };
