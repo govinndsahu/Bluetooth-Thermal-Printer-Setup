@@ -23,12 +23,20 @@ npm install node-thermal-printer-js
 ```js
 import { printData } from "node-thermal-printer-js";
 
-await printData("Hello from npm!");
+await printData("Hello World", {
+  transport: "ble", // or "com"
+  bleName: "PSF588",
+  connectTimeout: 15,
+  scanTimeout: 10,
+  portPath: "COM3", // for "com" transport
+  charUUID: "0000ffe1-0000-1000-8000-00805f9b34fb", // for "ble" transport
+});
 ```
 
 ## Local Development
 
 This project can print ESC/POS data to PSF588 using either:
+
 - BLE via Python bridge (`ble_print.py` + `bleak`)
 - Classic Bluetooth Serial (COM port) via `serialport`
 
@@ -62,6 +70,7 @@ node test-print.js ble ORDER123 PSF588 "AA:BB:CC:DD:EE:FF" "49535343-8841-43f4-a
 ```
 
 Args order for BLE:
+
 1. `ble`
 2. `orderId` (optional)
 3. `bleName` (optional, default: `PSF588`)
@@ -115,4 +124,3 @@ npm publish --access public
 - **"Access Denied" on write:** Characteristic doesn't support writes. Use `node test-print.js scan PSF588` to find a writable one.
 - **Connection timeout:** Keep printer in pairing mode, disconnect from other devices, ensure Bluetooth is enabled on Windows.
 - **Python not found:** Install Python 3.11+ and ensure it's on PATH, or set `PRINTER_PYTHON_CMD=py -3.11`.
-
