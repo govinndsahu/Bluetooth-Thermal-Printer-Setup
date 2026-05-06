@@ -77,9 +77,9 @@ python -c "import bleak; print('bleak', bleak.__version__)"
 ```
 
 Notes:
+
 - If you do not want to create a virtual environment you can install `bleak` system-wide with `pip install bleak`, but a venv is recommended.
 - The Node `serialport` path/COM mode does not require Python.
-
 
 ## Test Print
 
