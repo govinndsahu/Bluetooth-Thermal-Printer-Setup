@@ -47,6 +47,40 @@ npm install
 py -3.11 -m pip install -r requirements.txt
 ```
 
+### Python (BLE) setup
+
+If you plan to use `transport: "ble"`, you need a Python 3.11+ environment with the `bleak` library (the repo includes `ble_print.py` and `ble_scan.py`). Follow the steps for your platform.
+
+- Windows (recommended using the Python launcher):
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+# or: pip install bleak
+```
+
+- macOS / Linux:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+# or: pip install bleak
+```
+
+Verify the Python BLE dependency is available:
+
+```bash
+python -c "import bleak; print('bleak', bleak.__version__)"
+# or on Windows: py -3.11 -c "import bleak; print('bleak', bleak.__version__)"
+```
+
+Notes:
+- If you do not want to create a virtual environment you can install `bleak` system-wide with `pip install bleak`, but a venv is recommended.
+- The Node `serialport` path/COM mode does not require Python.
+
+
 ## Test Print
 
 ### BLE (recommended when no COM port exists)
