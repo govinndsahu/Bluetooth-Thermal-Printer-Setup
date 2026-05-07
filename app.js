@@ -22,25 +22,30 @@ let bleServerPort = null;
 
 /**
  * Find an available Python 3.9+ executable on the system.
- * Tries: py, python3, python (platform-aware)
- * @returns {string|null} Command name if found, null otherwise
+ * Tries local venv first, then versioned launcher probes on Windows, then system Python.
+ * @returns {{ cmd: string, args: string[] }|null} Command descriptor if found, null otherwise
  */
 const findPythonCmd = () => {
   const candidates = getPythonLaunchCandidates();
 
-  for (const cmd of candidates) {
+  for (const candidate of candidates) {
     try {
-      const result = spawnSync(cmd, ["--version"], {
+      const result = spawnSync(candidate.cmd, [...candidate.args, "--version"], {
         encoding: "utf8",
         timeout: 2000,
         shell: false,
       });
 
       const output = `${result.stdout || ""}${result.stderr || ""}`.trim();
-      const match = output.match(/Python (\d+\.\d+)/);
-      if (match && parseFloat(match[1]) >= 3.9) {
-        console.log(`[BLE] ✓ Detected Python: ${cmd} (${output})`);
-        return cmd;
+      const match = output.match(/Python (\d+)\.(\d+)/);
+      if (match) {
+        const major = parseInt(match[1], 10);
+        const minor = parseInt(match[2], 10);
+        // Check if Python 3.9+
+        if (major > 3 || (major === 3 && minor >= 9)) {
+          console.log(`[BLE] ✓ Detected Python: ${candidate.cmd} ${candidate.args.join(" ")} (${output})`);
+          return candidate;
+        }
       }
     } catch {
       // Continue to next candidate
@@ -52,20 +57,30 @@ const findPythonCmd = () => {
 const getPythonLaunchCandidates = () => {
   const localVenvCandidates = process.platform === "win32"
     ? [
-      path.join(scriptDir, ".venv", "Scripts", "python.exe"),
-      path.join(scriptDir, ".venv", "Scripts", "python"),
+      { cmd: path.join(scriptDir, ".venv", "Scripts", "python.exe"), args: [] },
+      { cmd: path.join(scriptDir, ".venv", "Scripts", "python"), args: [] },
     ]
     : [
-      path.join(scriptDir, ".venv", "bin", "python"),
-      path.join(scriptDir, ".venv", "bin", "python3"),
+      { cmd: path.join(scriptDir, ".venv", "bin", "python"), args: [] },
+      { cmd: path.join(scriptDir, ".venv", "bin", "python3"), args: [] },
     ];
 
   const systemCandidates = process.platform === "win32"
-    ? ["py", "python3", "python"]
-    : ["python3", "python", "py"];
+    ? [
+      { cmd: "py", args: ["-3.11"] },
+      { cmd: "py", args: ["-3"] },
+      { cmd: "py", args: [] },
+      { cmd: "python3", args: [] },
+      { cmd: "python", args: [] },
+    ]
+    : [
+      { cmd: "python3", args: [] },
+      { cmd: "python", args: [] },
+      { cmd: "py", args: [] },
+    ];
 
   return [
-    ...localVenvCandidates.filter((candidate) => existsSync(candidate)),
+    ...localVenvCandidates.filter((candidate) => existsSync(candidate.cmd)),
     ...systemCandidates,
   ];
 };
@@ -327,7 +342,7 @@ const startBleServer = async (options = {}) => {
   const candidates = envCmd
     ? [{ cmd: envCmd, cmdArgs: ["-u"] }] // -u for unbuffered output
     : [
-      ...(detectedPythonCmd ? [{ cmd: detectedPythonCmd, cmdArgs: ["-u"] }] : []),
+      ...(detectedPythonCmd ? [{ cmd: detectedPythonCmd.cmd, cmdArgs: [...detectedPythonCmd.args, "-u"] }] : []),
       ...getPythonLaunchCandidates().map((cmd) => ({ cmd, cmdArgs: ["-u"] })),
     ];
 

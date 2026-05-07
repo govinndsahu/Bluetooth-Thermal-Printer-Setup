@@ -15,35 +15,67 @@ const findPythonCmd = () => {
   const localVenvCandidates =
     process.platform === "win32"
       ? [
-          path.join(scriptDir, ".venv", "Scripts", "python.exe"),
-          path.join(scriptDir, ".venv", "Scripts", "python"),
+          {
+            cmd: path.join(scriptDir, ".venv", "Scripts", "python.exe"),
+            args: [],
+          },
+          { cmd: path.join(scriptDir, ".venv", "Scripts", "python"), args: [] },
         ]
       : [
-          path.join(scriptDir, ".venv", "bin", "python"),
-          path.join(scriptDir, ".venv", "bin", "python3"),
+          { cmd: path.join(scriptDir, ".venv", "bin", "python"), args: [] },
+          { cmd: path.join(scriptDir, ".venv", "bin", "python3"), args: [] },
+        ];
+
+  const systemCandidates =
+    process.platform === "win32"
+      ? [
+          { cmd: "py", args: ["-3.11"] },
+          { cmd: "py", args: ["-3"] },
+          { cmd: "py", args: [] },
+          { cmd: "python3", args: [] },
+          { cmd: "python", args: [] },
+        ]
+      : [
+          { cmd: "python3", args: [] },
+          { cmd: "python", args: [] },
+          { cmd: "py", args: [] },
         ];
 
   const candidates = [
-    ...localVenvCandidates.filter((candidate) => existsSync(candidate)),
-    ...(process.platform === "win32"
-      ? ["py", "python3", "python"]
-      : ["python3", "python", "py"]),
+    ...localVenvCandidates.filter((candidate) => existsSync(candidate.cmd)),
+    ...systemCandidates,
   ];
 
-  for (const cmd of candidates) {
+  for (const candidate of candidates) {
     try {
-      const result = spawnSync(cmd, ["--version"], {
-        encoding: "utf8",
-        stdio: "pipe",
-        timeout: 2000,
-        shell: false,
-      });
+      const result = spawnSync(
+        candidate.cmd,
+        [...candidate.args, "--version"],
+        {
+          encoding: "utf8",
+          stdio: "pipe",
+          timeout: 2000,
+          shell: false,
+        },
+      );
+
+      // Skip if command failed or timed out
+      if (result.status !== 0 || result.error) {
+        continue;
+      }
+
       const version = `${result.stdout || ""}${result.stderr || ""}`.trim();
       // Check if Python 3.9+
-      const match = version.match(/Python (\d+\.\d+)/);
-      if (match && parseFloat(match[1]) >= 3.9) {
-        console.log(`✓ Found ${cmd} (${version})`);
-        return cmd;
+      const match = version.match(/Python (\d+)\.(\d+)/);
+      if (match) {
+        const major = parseInt(match[1], 10);
+        const minor = parseInt(match[2], 10);
+        if (major > 3 || (major === 3 && minor >= 9)) {
+          console.log(
+            `✓ Found ${candidate.cmd} ${candidate.args.join(" ")} (${version})`,
+          );
+          return candidate;
+        }
       }
     } catch {
       // Continue to next candidate
@@ -56,12 +88,16 @@ const findPythonCmd = () => {
 const installBleak = (pythonCmd) => {
   console.log(`\n📦 Installing bleak Python package...`);
   try {
-    const result = spawnSync(pythonCmd, ["-m", "pip", "install", "bleak"], {
-      encoding: "utf8",
-      stdio: "inherit",
-      timeout: 120000,
-      shell: false,
-    });
+    const result = spawnSync(
+      pythonCmd.cmd,
+      [...pythonCmd.args, "-m", "pip", "install", "bleak"],
+      {
+        encoding: "utf8",
+        stdio: "inherit",
+        timeout: 120000,
+        shell: false,
+      },
+    );
     if (result.status !== 0) {
       throw new Error(`pip exited with code ${result.status ?? "unknown"}`);
     }
@@ -94,11 +130,15 @@ const main = async () => {
   // Step 2: Install bleak
   console.log("2️⃣  Checking bleak dependency...");
   try {
-    const importCheck = spawnSync(pythonCmd, ["-c", "import bleak"], {
-      stdio: "pipe",
-      timeout: 2000,
-      shell: false,
-    });
+    const importCheck = spawnSync(
+      pythonCmd.cmd,
+      [...pythonCmd.args, "-c", "import bleak"],
+      {
+        stdio: "pipe",
+        timeout: 2000,
+        shell: false,
+      },
+    );
     if (importCheck.status !== 0) {
       throw new Error("bleak import check failed");
     }
@@ -107,7 +147,9 @@ const main = async () => {
     const installed = installBleak(pythonCmd);
     if (!installed) {
       console.error("\n⚠ Manual installation required:");
-      console.error(`   ${pythonCmd} -m pip install bleak\n`);
+      console.error(
+        `   ${pythonCmd.cmd} ${pythonCmd.args.join(" ")} -m pip install bleak\n`,
+      );
     }
   }
 
