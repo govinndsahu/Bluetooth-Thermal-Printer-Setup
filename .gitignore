@@ -6,6 +6,8 @@ yarn-error.log*
 
 test.js
 thermal-printer-js-1.0.0.tgz
+printer-setup
+.gitignore
 
 # Environment
 .env

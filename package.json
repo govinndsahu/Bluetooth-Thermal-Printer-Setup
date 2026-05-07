@@ -11,17 +11,12 @@
     "ble_print.py",
     "ble_scan.py",
     "ble_server.py",
-    "scripts/install-deps.js",
     "README.md"
   ],
   "scripts": {
-    "postinstall": "node scripts/install-deps.js",
     "test": "node test-api.js",
     "dev": "node --watch app.js",
     "pack:dry": "npm pack --dry-run"
-  },
-  "engines": {
-    "node": ">=16.0.0"
   },
   "keywords": [
     "printer",
