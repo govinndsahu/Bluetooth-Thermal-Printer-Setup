@@ -1,7 +1,8 @@
 import "dotenv/config";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync, execSync } from "node:child_process";
 import { createConnection, createServer } from "node:net";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import path from "node:path";
 
 const getEscPosPayload = (data) =>
@@ -18,6 +19,120 @@ const bleServerPath = path.join(scriptDir, "ble_server.py");
 let bleServerProcess = null;
 let bleServerHost = null;
 let bleServerPort = null;
+
+/**
+ * Find an available Python 3.9+ executable on the system.
+ * Tries: py, python3, python (platform-aware)
+ * @returns {string|null} Command name if found, null otherwise
+ */
+const findPythonCmd = () => {
+  const candidates = getPythonLaunchCandidates();
+
+  for (const cmd of candidates) {
+    try {
+      const result = spawnSync(cmd, ["--version"], {
+        encoding: "utf8",
+        timeout: 2000,
+        shell: false,
+      });
+
+      const output = `${result.stdout || ""}${result.stderr || ""}`.trim();
+      const match = output.match(/Python (\d+\.\d+)/);
+      if (match && parseFloat(match[1]) >= 3.9) {
+        console.log(`[BLE] ✓ Detected Python: ${cmd} (${output})`);
+        return cmd;
+      }
+    } catch {
+      // Continue to next candidate
+    }
+  }
+  return null;
+};
+
+const getPythonLaunchCandidates = () => {
+  const localVenvCandidates = process.platform === "win32"
+    ? [
+      path.join(scriptDir, ".venv", "Scripts", "python.exe"),
+      path.join(scriptDir, ".venv", "Scripts", "python"),
+    ]
+    : [
+      path.join(scriptDir, ".venv", "bin", "python"),
+      path.join(scriptDir, ".venv", "bin", "python3"),
+    ];
+
+  const systemCandidates = process.platform === "win32"
+    ? ["py", "python3", "python"]
+    : ["python3", "python", "py"];
+
+  return [
+    ...localVenvCandidates.filter((candidate) => existsSync(candidate)),
+    ...systemCandidates,
+  ];
+};
+
+/**
+ * Kill any stale BLE server processes still bound to a port.
+ * Prevents "Address already in use" errors on reinstall or crash recovery.
+ * @param {number} port Port number to clean up
+ * @param {number} timeout Timeout in ms for the operation
+ */
+const killStaleProcesses = async (port, timeout = 3000) => {
+  const platformCmd = process.platform === "win32"
+    ? `netstat -ano | findstr :${port}`
+    : `lsof -ti:${port}`;
+
+  try {
+    const result = execSync(platformCmd, {
+      encoding: "utf8",
+      stdio: "pipe",
+      timeout,
+      shell: true,
+    }).trim();
+
+    if (!result) {
+      console.log(`[BLE] Port ${port} is clean`);
+      return;
+    }
+
+    console.warn(`[BLE] ⚠ Found stale process on port ${port}, cleaning up...`);
+
+    if (process.platform === "win32") {
+      // Extract PID from netstat output: "TCP    127.0.0.1:5555    0.0.0.0:0    LISTENING    12345"
+      const lines = result.split("\n");
+      const pids = new Set();
+      lines.forEach((line) => {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length > 0) {
+          const pid = parts[parts.length - 1];
+          if (/^\d+$/.test(pid)) pids.add(pid);
+        }
+      });
+
+      for (const pid of pids) {
+        try {
+          execSync(`taskkill /PID ${pid} /F`, { timeout: 2000, stdio: "pipe" });
+          console.log(`[BLE] ✓ Killed PID ${pid}`);
+        } catch (e) {
+          console.warn(`[BLE] Could not kill PID ${pid}:`, e.message);
+        }
+      }
+    } else {
+      // On Unix-like systems, lsof returns just the PID
+      const pids = result.split("\n").filter((p) => p);
+      for (const pid of pids) {
+        try {
+          execSync(`kill -9 ${pid}`, { timeout: 2000, stdio: "pipe" });
+          console.log(`[BLE] ✓ Killed PID ${pid}`);
+        } catch (e) {
+          console.warn(`[BLE] Could not kill PID ${pid}:`, e.message);
+        }
+      }
+    }
+  } catch (err) {
+    // If netstat/lsof fails, not critical - just log and continue
+    console.debug(`[BLE] Could not check for stale processes: ${err.message}`);
+  }
+};
 
 const findBindablePort = (host, preferredPort, strictPreferred = false) =>
   new Promise((resolve, reject) => {
@@ -114,11 +229,26 @@ const startBleServer = async (options = {}) => {
     return;
   }
 
+  const detectedPythonCmd = findPythonCmd();
+  if (!detectedPythonCmd) {
+    console.warn(
+      "[BLE] Python auto-detection did not find a preferred launcher. Trying fallback candidates, including the project virtualenv if present.",
+    );
+  }
+
   const host =
     options.host || process.env.PRINTER_BLE_SERVER_HOST || "127.0.0.1";
   const configuredPort = options.port || process.env.PRINTER_BLE_SERVER_PORT;
   const preferredPort = configuredPort ? Number(configuredPort) : 5555;
   const strictPreferred = Boolean(configuredPort);
+
+  // Clean up any stale processes before trying to bind
+  if (!strictPreferred) {
+    await killStaleProcesses(preferredPort, 3000).catch((err) => {
+      console.debug("[BLE] Stale process cleanup warning:", err.message);
+    });
+  }
+
   const selectedPort = await findBindablePort(
     host,
     preferredPort,
@@ -197,10 +327,9 @@ const startBleServer = async (options = {}) => {
   const candidates = envCmd
     ? [{ cmd: envCmd, cmdArgs: ["-u"] }] // -u for unbuffered output
     : [
-        { cmd: "py", cmdArgs: ["-3.11", "-u"] },
-        { cmd: "py", cmdArgs: ["-3", "-u"] },
-        { cmd: "python", cmdArgs: ["-u"] },
-      ];
+      ...(detectedPythonCmd ? [{ cmd: detectedPythonCmd, cmdArgs: ["-u"] }] : []),
+      ...getPythonLaunchCandidates().map((cmd) => ({ cmd, cmdArgs: ["-u"] })),
+    ];
 
   return new Promise((resolve, reject) => {
     let lastError;
@@ -330,8 +459,8 @@ const sendToBleServer = (request, options = {}) => {
     5555;
   const timeoutMs = Number(
     options.requestTimeoutMs ||
-      process.env.PRINTER_BLE_REQUEST_TIMEOUT_MS ||
-      40000,
+    process.env.PRINTER_BLE_REQUEST_TIMEOUT_MS ||
+    40000,
   );
 
   return new Promise((resolve, reject) => {
@@ -501,10 +630,10 @@ const printViaBleBridge = (data, options = {}) => {
   const candidates = envCmd
     ? [{ cmd: envCmd, cmdArgs: [] }]
     : [
-        { cmd: "py", cmdArgs: ["-3.11"] },
-        { cmd: "py", cmdArgs: ["-3"] },
-        { cmd: "python", cmdArgs: [] },
-      ];
+      { cmd: "py", cmdArgs: ["-3.11"] },
+      { cmd: "py", cmdArgs: ["-3"] },
+      { cmd: "python", cmdArgs: [] },
+    ];
 
   return new Promise(async (resolve, reject) => {
     const failures = [];
