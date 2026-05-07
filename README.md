@@ -2,52 +2,94 @@
 
 Public npm package for sending ESC/POS print jobs to a PSF588 printer over BLE or classic Bluetooth COM port.
 
-## ⚠️ Installation Requirements (READ FIRST)
+## Installation
 
-### Required Software
-- **Node.js**: 16.0.0 or higher
-- **Python**: 3.9 or higher (downloads: https://www.python.org/downloads/)
-- **pip**: Python package manager (usually included with Python)
-
-### Required Python Library
-- **bleak**: BLE client library for Python
-  - Auto-installed during `npm install` (see postinstall)
-  - Or manually: `pip install bleak`
-
-### Platform-Specific Requirements
-
-#### Windows
-- Python 3.9+ with pip
-- Bluetooth drivers (usually included with Windows 10+)
-- No special permissions needed
-
-#### macOS
-- Python 3.9+ with pip
-- Ensure Bluetooth is enabled in System Preferences
-- May require granting Terminal/Node.js permission to use Bluetooth
-
-#### Linux
-- Python 3.9+ with pip
-- **Required group permissions**:
-  ```bash
-  sudo usermod -a -G dialout,plugdev $USER
-  ```
-  Then log out and back in for changes to take effect.
-  Without this, BLE operations will fail with permission errors.
-
-## Quick Start
-
-### 1. Install Package
 ```bash
 npm install node-thermal-printer-js
 ```
 
-The postinstall script will:
-- ✅ Check for Python 3.9+
-- ✅ Verify/install bleak library
-- ✅ Display platform-specific setup instructions
+That's it! No validation, no postinstall hooks. Just a clean package.
 
-### 2. Create `.env` Configuration (Optional)
+---
+
+## Runtime Requirements
+
+To use this package, your environment needs:
+
+- **Node.js**: 16.0.0 or higher
+- **Python**: 3.9 or higher
+- **Python package**: `bleak` (BLE client library)
+
+### For End Users (.exe Applications)
+
+If you're distributing this as an `.exe`, include the `setup-runtime.bat` script:
+
+```bash
+setup-runtime.bat
+```
+
+This script automatically:
+1. ✅ Checks and installs Node.js (if missing)
+2. ✅ Checks and installs Python 3.11 (if missing)
+3. ✅ Installs the `bleak` library
+4. ✅ Shows timing for each step
+
+**Usage:**
+- Unzip your application
+- Double-click `setup-runtime.bat`
+- Wait for completion
+- Run your `.exe`
+
+---
+
+## Quick Start (Development)
+
+### 1. Install Package
+
+```bash
+npm install node-thermal-printer-js
+```
+
+### 2. Ensure Python & Bleak are Available
+
+```bash
+python -m pip install bleak
+# or
+python3 -m pip install bleak
+```
+
+### 3. Use in Your Code
+
+```js
+import { printData, startPrinterServer, stopPrinterServer } from "node-thermal-printer-js";
+
+// Option 1: Fast persistent server (recommended for multiple prints)
+await startPrinterServer({ bleName: "PSF588" });
+await printData("Hello World");
+await printData("Second print (faster)");
+await stopPrinterServer();
+
+// Option 2: Simple one-off print
+await printData("Hello World", { 
+  transport: "ble", 
+  bleName: "PSF588",
+  scanTimeout: 10,
+  connectTimeout: 15
+});
+
+// Option 3: Windows COM port
+await printData("Hello World", { 
+  transport: "com",
+  portPath: "COM3"
+});
+```
+
+---
+
+## Configuration (.env)
+
+Create a `.env` file to customize behavior:
+
 ```env
 # Transport: "ble-server" (recommended), "ble", or "com"
 PRINTER_TRANSPORT=ble-server
@@ -69,49 +111,27 @@ PRINTER_COM_PORT=COM3
 PRINTER_PYTHON_CMD=python3
 ```
 
-### 3. Use in Code
-```js
-import { printData, startPrinterServer, stopPrinterServer } from "node-thermal-printer-js";
-
-// Option 1: Fast persistent server (recommended)
-await startPrinterServer({ bleName: "PSF588" });
-await printData("Hello World");
-await printData("Second print (faster)");
-await stopPrinterServer();
-
-// Option 2: Simple one-off print
-await printData("Hello World", { 
-  transport: "ble", 
-  bleName: "PSF588",
-  scanTimeout: 10,
-  connectTimeout: 15
-});
-
-// Option 3: COM port (Windows)
-await printData("Hello World", { 
-  transport: "com",
-  portPath: "COM3"
-});
-```
+---
 
 ## API Reference
 
 ### `printData(data, options?)`
+
 Print ESC/POS data to thermal printer.
 
 **Parameters:**
 - `data` (string): ESC/POS data to print
 - `options` (object, optional):
-  - `transport` (string): "ble-server", "ble", or "com" - default: "ble-server"
-  - `bleName` (string): Printer name for BLE discovery
-  - `bleAddress` (string): MAC address (e.g., "C8:47:8C:1F:72:34")
-  - `charUUID` (string): BLE characteristic UUID for write operations
-  - `portPath` (string): COM port path (e.g., "COM3") for COM transport
+  - `transport` (string): `"ble-server"`, `"ble"`, or `"com"` — default: `"ble-server"`
+  - `bleName` (string): Printer BLE device name
+  - `bleAddress` (string): BLE MAC address (e.g., `"C8:47:8C:1F:72:34"`)
+  - `charUUID` (string): BLE characteristic UUID
+  - `portPath` (string): COM port path for Windows (e.g., `"COM3"`)
   - `scanTimeout` (number): BLE scan timeout in seconds (default: 10)
   - `connectTimeout` (number): BLE connection timeout in seconds (default: 15)
-  - `requestTimeoutMs` (number): Server request timeout in ms (default: 40000)
+  - `requestTimeoutMs` (number): Server request timeout in milliseconds (default: 40000)
 
-**Returns:** Promise<{ok: boolean, bytes_sent: number}>
+**Returns:** `Promise<{ok: boolean, bytes_sent: number}>`
 
 **Example:**
 ```js
@@ -126,12 +146,15 @@ try {
 }
 ```
 
+---
+
 ### `startPrinterServer(options?)`
-Start persistent BLE server for faster multi-print performance. The server stays running to eliminate connection overhead.
+
+Start persistent BLE server for faster multi-print performance.
 
 **Parameters:** Same as `printData` options
 
-**Returns:** Promise<void>
+**Returns:** `Promise<void>`
 
 **Example:**
 ```js
@@ -142,13 +165,19 @@ await startPrinterServer({
 console.log("Server ready for fast printing");
 ```
 
+---
+
 ### `stopPrinterServer()`
+
 Stop the running BLE server and clean up resources.
 
-**Returns:** Promise<void>
+**Returns:** `Promise<void>`
+
+---
 
 ### `getPrinterServerStatus()`
-Get status of running BLE server.
+
+Get status of the running BLE server.
 
 **Returns:**
 ```js
@@ -160,98 +189,127 @@ Get status of running BLE server.
 }
 ```
 
+---
+
+## Transport Modes
+
+| Mode | Speed | Best For |
+|------|-------|----------|
+| `ble-server` | 100-200ms | Multiple prints, APIs, production |
+| `ble` | 1-2s | Single prints, testing, fallback |
+| `com` | Variable | Windows paired COM port, fallback |
+
+**Recommendation:** Use `ble-server` (default) for best performance.
+
+---
+
 ## Troubleshooting
 
-### "Python 3.9+ not found"
-**Solution:**
-1. Install Python from https://www.python.org/downloads/
-2. Ensure Python is in system PATH:
-   - Windows: Check "Add Python to PATH" during installation
-   - Mac/Linux: Verify `python3` works in terminal
-3. Set environment variable:
-   ```bash
-   export PRINTER_PYTHON_CMD=python3  # or python, py.exe, etc.
-   ```
-4. Run: `npm install` again
+### Python or Bleak Not Found
 
-### "bleak module not found"
-**Solution:**
+**For Developers:**
 ```bash
+# Install Python from: https://www.python.org/downloads/ (3.9+)
+# Then install bleak:
 pip install bleak
-# or with Python 3 explicitly:
-python3 -m pip install bleak
 ```
 
-### "Address already in use" (Port 5555)
-**Solution:**
-This happens if a previous BLE server crashed. The package auto-detects and cleans up stale processes, but manual cleanup:
-```bash
-# Windows
-netstat -ano | findstr :5555
-taskkill /PID <PID> /F
+**For End Users (.exe):**
+- Run `setup-runtime.bat` to auto-install everything
 
-# Mac/Linux
-lsof -ti:5555 | xargs kill -9
-```
+### "Device not found" or Connection Timeouts
 
-### "Device not found" or connection timeouts
-**Solutions:**
 1. Ensure printer is powered on and in BLE discoverable mode
 2. Increase timeouts:
    ```js
    await printData(data, { scanTimeout: 20, connectTimeout: 25 });
    ```
-3. Try specifying MAC address (faster than name discovery):
+3. Try specifying MAC address (faster than discovery):
    ```js
    await printData(data, { bleAddress: "C8:47:8C:1F:72:34" });
    ```
-4. On Linux, verify group permissions: `id $USER` should show `dialout` and `plugdev` groups
 
-### "Permission denied" (Linux)
-**Solution:**
+### "Address already in use" (Port 5555)
+
+This happens if a previous BLE server crashed. Restart your terminal or kill the process:
+
+**Windows:**
 ```bash
-# Add user to required groups
-sudo usermod -a -G dialout,plugdev $USER
-
-# Apply immediately (or log out/in)
-su - $USER
+netstat -ano | findstr :5555
+taskkill /PID <PID> /F
 ```
 
-### Print job times out
-**Solutions:**
+**Mac/Linux:**
+```bash
+lsof -ti:5555 | xargs kill -9
+```
+
+### Print Job Times Out
+
 1. Increase timeout:
    ```js
    await printData(data, { requestTimeoutMs: 60000 });
    ```
-2. Check printer is still connected and responsive
-3. Try legacy BLE transport:
+2. Check printer is still connected
+3. Try fallback transport:
    ```js
-   await printData(data, { transport: "ble" });  // No persistent server
+   await printData(data, { transport: "ble" });
    ```
 
-## Performance
+---
 
-### Transport Modes Comparison
+## Architecture
 
-| Mode | Speed | Resource Use | Recommended For |
-|------|-------|--------------|-----------------|
-| `ble-server` | **100-200ms** ✓ | Low (persistent) | Multiple prints, APIs |
-| `ble` | 1-2s | Medium (spawn/connect each time) | Single prints, testing |
-| `com` | Variable | Low | Windows paired COM port |
+### Components
 
-### Why `ble-server` is Fast
-- Reuses single BLE connection for multiple prints
-- Eliminates per-print connection overhead (1s)
-- Persistent Python daemon handles I/O
+1. **app.js** — Main Node.js module with BLE client logic
+2. **ble_server.py** — Persistent Python BLE daemon (optional, for ble-server mode)
+3. **ble_print.py** — Legacy BLE bridge (one process per print)
+4. **ble_scan.py** — Device discovery utility
+
+### Data Flow (ble-server mode - Recommended)
+
+```
+printData(data, options)
+  ↓
+startBleServer() [if not running]
+  ↓
+Node.js spawns ble_server.py (persistent)
+  ↓
+Send TCP request to server with ESC/POS data
+  ↓
+ble_server.py connects to PSF588 via BLE
+  ↓
+Writes data via BLE characteristic
+  ↓
+Response returned to Node.js
+```
+
+### Data Flow (ble mode - Fallback)
+
+```
+printData(data, options)
+  ↓
+Spawn ble_print.py process
+  ↓
+Connect to printer, send data, exit
+  ↓
+Response returned to Node.js
+```
+
+---
 
 ## Development
 
-### Local Development
+### Local Setup
+
 ```bash
-# Clone and setup
 git clone <repo>
 cd Printer
 npm install
+
+# Install Python dependencies
+pip install bleak
 
 # Run tests
 npm test
@@ -260,64 +318,12 @@ npm test
 npm run dev
 ```
 
-### Requirements for development
-```bash
-# Install Python dev dependencies
-pip install -r requirements.txt
-```
-
-## Architecture
-
-### Components
-1. **app.js** (Node.js): Express-compatible export module, socket IPC client
-2. **ble_server.py** (Python): Long-running BLE daemon, accepts print requests over TCP
-3. **ble_print.py** (Python): Fallback legacy BLE bridge (process per print)
-4. **scripts/install-deps.js** (Node.js): Postinstall hook for dependency verification
-
-### Data Flow
-```
-printData(data)
-  ↓
-[ble-server mode]
-  ↓
-sendToBleServer() → TCP socket to ble_server.py
-  ↓
-ble_server.py connects to PSF588 printer (reused)
-  ↓
-Writes ESC/POS data via BLE characteristic write
-  ↓
-Response sent back over socket
-
-[ble mode - fallback]
-  ↓
-Spawn new ble_print.py process
-  ↓
-Process connects to printer, prints, exits (slower)
-```
+---
 
 ## License
 
 ISC
 
-
-If you plan to use `transport: "ble"`, you need a Python 3.11+ environment with the `bleak` library (the repo includes `ble_print.py` and `ble_scan.py`). Follow the steps for your platform.
-
-- Windows (recommended using the Python launcher):
-
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\activate
-pip install -r requirements.txt
-# or: pip install bleak
-```
-
-- macOS / Linux:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-# or: pip install bleak
 ```
 
 Verify the Python BLE dependency is available:
